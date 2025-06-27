@@ -150,7 +150,7 @@ export default function OrderForm({ menu }) {
                                                     <MenuItemCard 
                                                         key={item.id} 
                                                         item={item} 
-                                                        onAddToCart={addItem} 
+                                                        
                                                     />
                                                 ))
                                             ) : (

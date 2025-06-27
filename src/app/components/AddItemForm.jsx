@@ -1,24 +1,55 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 
-export default function AddItemForm({ venueId, categories, onItemAdded }) {
+// The form now accepts `itemToEdit` and a function to clear the editing state
+export default function AddItemForm({ venueId, categories, onItemAdded, itemToEdit, setItemToEdit }) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [isPopular, setIsPopular] = useState(false);
-    const [imageFile, setImageFile] = useState(null); // State for the selected image file
+    const [imageFile, setImageFile] = useState(null);
+    const [currentImageUrl, setCurrentImageUrl] = useState(null);
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const supabase = createClient();
 
+    // This useEffect hook listens for changes to `itemToEdit`
+    // When an item is passed in, it populates the form fields.
+    useEffect(() => {
+        if (itemToEdit) {
+            setName(itemToEdit.name);
+            setDescription(itemToEdit.description || '');
+            setPrice(itemToEdit.price);
+            setCategoryId(itemToEdit.category_id || '');
+            setIsPopular(itemToEdit.is_popular || false);
+            setCurrentImageUrl(itemToEdit.image_url);
+        } else {
+            // If itemToEdit is cleared, reset the form
+            setName('');
+            setDescription('');
+            setPrice('');
+            setCategoryId('');
+            setIsPopular(false);
+            setCurrentImageUrl(null);
+        }
+    }, [itemToEdit]);
+
     const handleImageChange = (e) => {
         if (e.target.files && e.target.files[0]) {
             setImageFile(e.target.files[0]);
         }
+    };
+
+    const clearForm = () => {
+        // We now call the parent's function to clear the editing state
+        setItemToEdit(null);
+        setImageFile(null);
+        setError('');
+        // The useEffect will handle resetting the other form fields
     };
 
     const handleSubmit = async (e) => {
@@ -31,70 +62,71 @@ export default function AddItemForm({ venueId, categories, onItemAdded }) {
         setIsLoading(true);
         setError('');
 
-        let imageUrl = null;
+        let imageUrl = itemToEdit ? itemToEdit.image_url : null;
 
-        // --- START: IMAGE UPLOAD LOGIC ---
         if (imageFile) {
-            // Create a unique file path for the image
+            // If a new image is selected, upload it
             const fileName = `${Date.now()}_${imageFile.name}`;
-            const filePath = `${venueId}/${fileName}`; // IMPORTANT: The folder is the venueId
+            const filePath = `${venueId}/${fileName}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from('menu-images')
-                .upload(filePath, imageFile);
+            const { error: uploadError } = await supabase.storage.from('menu-images').upload(filePath, imageFile);
 
             if (uploadError) {
-                console.error("Error uploading image:", uploadError);
                 setError(`Failed to upload image: ${uploadError.message}`);
                 setIsLoading(false);
                 return;
             }
-
-            // If upload is successful, get the public URL
-            const { data: urlData } = supabase.storage
-                .from('menu-images')
-                .getPublicUrl(filePath);
-
-            imageUrl = urlData.publicUrl;
+            
+            // Get the new public URL
+            imageUrl = supabase.storage.from('menu-images').getPublicUrl(filePath).data.publicUrl;
         }
-        // --- END: IMAGE UPLOAD LOGIC ---
+        
+        const itemData = {
+            name,
+            description,
+            price: parseFloat(price),
+            category_id: categoryId,
+            venue_id: venueId,
+            is_popular: isPopular,
+            image_url: imageUrl
+        };
 
+        if (itemToEdit) {
+            // --- EDIT MODE: Perform an UPDATE ---
+            const { error: updateError } = await supabase
+                .from('menu_items')
+                .update(itemData)
+                .eq('id', itemToEdit.id);
 
-        // Now, insert the menu item with the image URL
-        const { error: insertError } = await supabase
-            .from('menu_items')
-            .insert({
-                name,
-                description,
-                price: parseFloat(price),
-                category_id: categoryId,
-                venue_id: venueId,
-                is_popular: isPopular,
-                image_url: imageUrl // Add the URL to the insert data
-            });
-
-        if (insertError) {
-            console.error("Error inserting menu item:", insertError);
-            setError(`Failed to add item: ${insertError.message}`);
+            if (updateError) setError(`Failed to update item: ${updateError.message}`);
+            else {
+                clearForm();
+                onItemAdded(); // Notify parent to refetch
+            }
         } else {
-            // Success! Clear the form and notify the parent.
-            setName('');
-            setDescription('');
-            setPrice('');
-            setCategoryId('');
-            setIsPopular(false);
-            setImageFile(null);
-            document.getElementById('image').value = ''; // Clear the file input
-            onItemAdded();
+            // --- ADD MODE: Perform an INSERT ---
+            const { error: insertError } = await supabase
+                .from('menu_items')
+                .insert(itemData);
+
+            if (insertError) setError(`Failed to add item: ${insertError.message}`);
+            else {
+                clearForm();
+                onItemAdded();
+            }
         }
         
         setIsLoading(false);
     };
 
+    // Determine if we are in "edit mode"
+    const isEditing = !!itemToEdit;
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="font-bold text-xl mb-4 text-gray-800">Add New Menu Item</h3>
+            <h3 className="font-bold text-xl mb-4 text-gray-800">{isEditing ? 'Edit Menu Item' : 'Add New Menu Item'}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
+                {/* All form fields remain the same */}
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">Item Name</label>
                     <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
@@ -102,7 +134,7 @@ export default function AddItemForm({ venueId, categories, onItemAdded }) {
                 
                 <div>
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-                    <textarea id="description" value={description} onChange={(e) => setDescription(e.T.value)} rows="3" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                    <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows="3" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -120,8 +152,7 @@ export default function AddItemForm({ venueId, categories, onItemAdded }) {
                         </select>
                     </div>
                 </div>
-
-                {/* --- NEW FILE INPUT FIELD --- */}
+                
                 <div>
                     <label htmlFor="image" className="block text-sm font-medium text-gray-700">Menu Image</label>
                     <input 
@@ -131,6 +162,7 @@ export default function AddItemForm({ venueId, categories, onItemAdded }) {
                         onChange={handleImageChange}
                         className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
+                    {currentImageUrl && <p className="text-xs text-gray-500 mt-1">Current image is set. Choose a new file to replace it.</p>}
                 </div>
                 
                 <div className="flex items-center">
@@ -140,9 +172,16 @@ export default function AddItemForm({ venueId, categories, onItemAdded }) {
                 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
                 
-                <button type="submit" disabled={isLoading} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400">
-                    {isLoading ? 'Uploading...' : 'Add Item to Menu'}
-                </button>
+                <div className="flex gap-2">
+                    {isEditing && (
+                        <button type="button" onClick={clearForm} className="w-1/3 p-3 bg-gray-500 text-white rounded-lg font-bold hover:bg-gray-600">
+                            Cancel
+                        </button>
+                    )}
+                    <button type="submit" disabled={isLoading} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400">
+                        {isLoading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Add Item')}
+                    </button>
+                </div>
             </form>
         </div>
     );
