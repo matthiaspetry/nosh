@@ -28,16 +28,18 @@ export default function LiveBill({ tableId, tableInfo }) {
             setSessionItems([]);
         } else {
             setSessionItems(data || []);
-            if (data && data.length > 0 && !sessionId) {
-                const { data: sessionData } = await supabase
-                    .from('table_sessions')
-                    .select('id')
-                    .eq('table_id', tableId)
-                    .eq('status', 'open')
-                    .single();
-                if(sessionData) {
-                    setSessionId(sessionData.id);
-                }
+        }
+
+        // Always try to fetch sessionId if not set
+        if (!sessionId) {
+            const { data: sessionData } = await supabase
+                .from('table_sessions')
+                .select('id')
+                .eq('table_id', tableId)
+                .eq('status', 'open')
+                .single();
+            if(sessionData) {
+                setSessionId(sessionData.id);
             }
         }
     }, [tableId, supabase, sessionId]);
@@ -68,6 +70,25 @@ export default function LiveBill({ tableId, tableInfo }) {
             window.removeEventListener('orderSubmitted', handleOrderSubmitted);
         };
     }, [tableId, fetchBill]);
+
+    // Fetch sessionId independently so it's always available
+    useEffect(() => {
+        if (!tableId || sessionId) return;
+        const fetchSession = async () => {
+            const { data: sessionData, error } = await supabase
+                .from('table_sessions')
+                .select('id')
+                .eq('table_id', tableId)
+                .eq('status', 'open')
+                .single();
+            if (error) {
+                console.error("Error fetching sessionId:", error);
+            } else if (sessionData) {
+                setSessionId(sessionData.id);
+            }
+        };
+        fetchSession();
+    }, [tableId, sessionId, supabase]);
 
     const handleSelectItem = (itemId) => {
         setSelectedItems(prev => 
@@ -191,7 +212,7 @@ export default function LiveBill({ tableId, tableInfo }) {
 
                         {/* Content */}
                         <div className="flex flex-col h-full">
-                            <div className="flex-1 overflow-y-auto">
+                            <div className="flex-1 overflow-y-auto pb-24">
                                 {/* Pending Items from Cart (not yet ordered) */}
                                 {items.length > 0 && (
                                     <div className="p-6 border-b border-gray-200 bg-blue-50">
@@ -292,8 +313,8 @@ export default function LiveBill({ tableId, tableInfo }) {
                             </div>
 
                             {/* Payment Section */}
-                            {itemsToPayFor.length > 0 && sessionId && (
-                                <div className="border-t bg-gray-50 p-6">
+                            {itemsToPayFor.length > 0 && (
+                                <div className="absolute bottom-0 left-0 right-0 border-t bg-gray-50 p-6">
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center">
                                             <span className="text-lg font-semibold text-gray-900">
@@ -306,9 +327,15 @@ export default function LiveBill({ tableId, tableInfo }) {
                                         <button 
                                             onClick={() => setIsPaying(true)} 
                                             className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-lg font-bold text-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                            disabled={!sessionId}
                                         >
-                                            Pay for Selected Items
+                                            {sessionId ? 'Pay for Selected Items' : 'Loading session...'}
                                         </button>
+                                        {!sessionId && (
+                                            <p className="text-sm text-gray-500 text-center">
+                                                Waiting for session to load...
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             )}
