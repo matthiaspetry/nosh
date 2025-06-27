@@ -147,18 +147,6 @@ export default function LiveBill({ tableId, tableInfo }) {
     // Cart totals from store
     const pendingItemsCount = items.reduce((acc, item) => acc + item.quantity, 0);
     const pendingTotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    
-    if (isPaying) {
-        return (
-            <DummyCheckout
-                totalAmount={paymentTotal}
-                paidItemIds={selectedItems}
-                sessionId={sessionId}
-                onCancel={() => setIsPaying(false)}
-                onSuccess={handlePaymentSuccess}
-            />
-        );
-    }
 
     return (
         <>
@@ -340,6 +328,19 @@ export default function LiveBill({ tableId, tableInfo }) {
                                 </div>
                             )}
                         </div>
+
+                        {/* Payment Overlay */}
+                        {isPaying && (
+                            <div className="absolute inset-0 bg-white z-10">
+                                <DummyCheckout
+                                    totalAmount={paymentTotal}
+                                    paidItemIds={selectedItems}
+                                    sessionId={sessionId}
+                                    onCancel={() => setIsPaying(false)}
+                                    onSuccess={handlePaymentSuccess}
+                                />
+                            </div>
+                        )}
                     </div>
                 </>
             )}
