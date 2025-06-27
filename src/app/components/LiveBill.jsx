@@ -189,12 +189,12 @@ export default function LiveBill({ tableId, tableInfo }) {
                     />
                     
                     {/* Sidebar */}
-                    <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out overflow-hidden">
+                    <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out overflow-hidden flex flex-col">
                         {/* Header */}
-                        <div className="bg-gray-900 p-6 text-white">
+                        <div className="bg-gray-900 p-4 md:p-6 text-white flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h3 className="text-2xl font-bold">Your Order</h3>
+                                    <h3 className="text-xl md:text-2xl font-bold">Your Order</h3>
                                     <p className="text-gray-300 text-sm">
                                         {totalItems + pendingItemsCount} items • ${(totalAmount + pendingTotal).toFixed(2)}
                                     </p>
@@ -211,11 +211,11 @@ export default function LiveBill({ tableId, tableInfo }) {
                         </div>
 
                         {/* Content */}
-                        <div className="flex flex-col h-full">
-                            <div className="flex-1 overflow-y-auto pb-24">
+                        <div className="flex flex-col flex-1 min-h-0">
+                            <div className="flex-1 overflow-y-auto">
                                 {/* Pending Items from Cart (not yet ordered) */}
                                 {items.length > 0 && (
-                                    <div className="p-6 border-b border-gray-200 bg-blue-50">
+                                    <div className="p-4 md:p-6 border-b border-gray-200 bg-blue-50">
                                         <div className="flex items-center justify-between mb-4">
                                             <h4 className="font-bold text-gray-900">Ready to Order</h4>
                                             <span className="text-sm font-medium text-gray-600">
@@ -255,7 +255,7 @@ export default function LiveBill({ tableId, tableInfo }) {
                                 )}
 
                                 {/* Session Items (already ordered) */}
-                                <div className="p-6">
+                                <div className="p-4 md:p-6">
                                     {sessionItems.length === 0 && items.length === 0 ? (
                                         <div className="text-center py-12">
                                             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
@@ -314,19 +314,19 @@ export default function LiveBill({ tableId, tableInfo }) {
 
                             {/* Payment Section */}
                             {itemsToPayFor.length > 0 && (
-                                <div className="absolute bottom-0 left-0 right-0 border-t bg-gray-50 p-6">
+                                <div className="flex-shrink-0 border-t bg-gray-50 p-4 md:p-6 safe-area-inset-bottom">
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-lg font-semibold text-gray-900">
+                                            <span className="text-base md:text-lg font-semibold text-gray-900">
                                                 Selected Items ({itemsToPayFor.length})
                                             </span>
-                                            <span className="text-2xl font-bold text-gray-900">
+                                            <span className="text-xl md:text-2xl font-bold text-gray-900">
                                                 ${paymentTotal.toFixed(2)}
                                             </span>
                                         </div>
                                         <button 
                                             onClick={() => setIsPaying(true)} 
-                                            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-lg font-bold text-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-lg font-bold text-base md:text-lg shadow-md hover:shadow-lg transition-all duration-200 touch-manipulation"
                                             disabled={!sessionId}
                                         >
                                             {sessionId ? 'Pay for Selected Items' : 'Loading session...'}
